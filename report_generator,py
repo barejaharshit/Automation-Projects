@@ -5,9 +5,7 @@ if os.path.exists("daily_report.txt"):
     exit()
 
 import feedparser
-# =============================
-# Indian economic news sources
-# =============================
+
 PRIMARY_FEED = "https://www.livemint.com/rss/economy"
 FALLBACK_FEED = "https://economictimes.indiatimes.com/rssfeedsdefault.cms"
 
@@ -19,9 +17,7 @@ def fetch_top_news(feed_url):
     return feed.entries[0]
 
 
-# =============================
-# Fetch news with fallback
-# =============================
+
 entry = fetch_top_news(PRIMARY_FEED)
 source_used = "LiveMint (Economy)"
 
@@ -38,9 +34,7 @@ summary = entry.summary
 link = entry.link
 
 
-# =============================
-# Locked consulting-style prompt
-# =============================
+
 prompt = f"""
 You are a consulting analyst writing a fact-based, human-sounding analysis for an Indian audience.
 
@@ -92,9 +86,7 @@ Write a short concluding paragraph that balances the positives and risks.
 Avoid predictions or strong forecasts.
 """
 
-# =============================
-# Output (audit-friendly)
-# =============================
+
 print("\n==============================")
 print("INDIAN ECONOMIC NEWS SELECTED")
 print("==============================")
@@ -133,13 +125,11 @@ with open("prompt_today.txt", "w", encoding="utf-8") as file:
 
 print("\nPrompt saved to prompt_today.txt")
 
-# =============================
-# Generate report using OpenRouter
-# =============================
+
 
 import requests
 
-OPENROUTER_API_KEY = "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"
+OPENROUTER_API_KEY = "[HIDDEN FOR SECURITY PURPOSES"
 
 # Load today's prompt
 with open("prompt_today.txt", "r", encoding="utf-8") as file:
@@ -178,9 +168,7 @@ with open("daily_report.txt", "w", encoding="utf-8") as file:
 
 print("AI-generated report saved as daily_report.txt")
 
-# =============================
-# Publish to Blogspot via Email
-# =============================
+
 
 import smtplib
 from email.mime.text import MIMEText
@@ -209,5 +197,6 @@ with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
     server.send_message(msg)
 
 print("Post published to Blogspot.")
+
 
 
