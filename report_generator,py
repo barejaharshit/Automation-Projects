@@ -1,0 +1,213 @@
+import os
+
+if os.path.exists("daily_report.txt"):
+    print("Report already generated today. Exiting to save quota.")
+    exit()
+
+import feedparser
+# =============================
+# Indian economic news sources
+# =============================
+PRIMARY_FEED = "https://www.livemint.com/rss/economy"
+FALLBACK_FEED = "https://economictimes.indiatimes.com/rssfeedsdefault.cms"
+
+
+def fetch_top_news(feed_url):
+    feed = feedparser.parse(feed_url)
+    if not feed.entries:
+        return None
+    return feed.entries[0]
+
+
+# =============================
+# Fetch news with fallback
+# =============================
+entry = fetch_top_news(PRIMARY_FEED)
+source_used = "LiveMint (Economy)"
+
+if entry is None:
+    entry = fetch_top_news(FALLBACK_FEED)
+    source_used = "Economic Times (Fallback)"
+
+if entry is None:
+    print("No Indian economic news available today.")
+    exit()
+
+title = entry.title
+summary = entry.summary
+link = entry.link
+
+
+# =============================
+# Locked consulting-style prompt
+# =============================
+prompt = f"""
+You are a consulting analyst writing a fact-based, human-sounding analysis for an Indian audience.
+
+News Title:
+{title}
+
+News Summary:
+{summary}
+
+Context and Constraints:
+- Write for educated Indian professionals.
+- Keep language simple, precise, and non-generic.
+- Avoid em dashes.
+- Avoid buzzwords and filler phrases.
+- Prefer concrete facts and numbers stated directly as sentences.
+- Do not support facts using references, links, or external material.
+- Opinions must be reasoned and evidence-linked only through logic, not citations.
+- The output must read like a finished report, not a conversation.
+
+Strict Output Rules:
+- Do not ask any questions.
+- Do not include suggestions for further analysis.
+- Do not include offers to help further.
+- Do not reference yourself, the reader, or the AI.
+- Do not include hyperlinks of any kind.
+- Do not include references to videos, YouTube, podcasts, articles, or explainers.
+- Do not cite or mention any source other than what appears in the news summary.
+- Do not include your reasoning or analysis steps.
+- End the report conclusively.
+
+Required Output Structure:
+
+Paragraph 1:
+Explain clearly what happened, including at least one concrete fact, figure, date, or institution.
+
+Paragraph 2:
+Explain why this development matters specifically for India’s economy, policy, markets, or businesses.
+
+Section: Positive implications
+Present exactly two implications as short bullet points.
+Each bullet must be a complete sentence explaining who benefits and how.
+
+Section: Negative risks or concerns
+Present exactly two risks as short bullet points.
+Each bullet must be a complete sentence explaining what could still go wrong and why.
+
+Final paragraph:
+Write a short concluding paragraph that balances the positives and risks.
+Avoid predictions or strong forecasts.
+"""
+
+# =============================
+# Output (audit-friendly)
+# =============================
+print("\n==============================")
+print("INDIAN ECONOMIC NEWS SELECTED")
+print("==============================")
+print(f"Source used: {source_used}\n")
+
+print("Title:")
+print(title)
+
+print("\nSummary:")
+print(summary)
+
+# =============================
+# Save news metadata to file
+# =============================
+with open("news_today.txt", "w", encoding="utf-8") as file:
+    file.write("INDIAN ECONOMIC NEWS\n\n")
+    file.write(f"Source: {source_used}\n\n")
+    file.write("Title:\n")
+    file.write(title + "\n\n")
+    file.write("Summary:\n")
+    file.write(summary + "\n\n")
+    file.write("Original Article Link:\n")
+    file.write(link)
+
+print("\nNews details saved to news_today.txt")
+
+
+print("\n==============================")
+print("PROMPT SENT TO AI")
+print("==============================\n")
+print(prompt)
+
+# Save prompt to file
+with open("prompt_today.txt", "w", encoding="utf-8") as file:
+    file.write(prompt)
+
+print("\nPrompt saved to prompt_today.txt")
+
+# =============================
+# Generate report using OpenRouter
+# =============================
+
+import requests
+
+OPENROUTER_API_KEY = "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"
+
+# Load today's prompt
+with open("prompt_today.txt", "r", encoding="utf-8") as file:
+    prompt_for_ai = file.read()
+
+print("\nSending prompt to OpenRouter...")
+
+response = requests.post(
+    url="https://openrouter.ai/api/v1/chat/completions",
+    headers={
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "http://localhost",
+        "X-Title": "Daily Economic Analysis Automation"
+    },
+    json={
+        "model": "mistralai/mistral-7b-instruct",
+        "messages": [
+            {"role": "system", "content": "You are a professional consulting analyst."},
+            {"role": "user", "content": prompt_for_ai}
+        ],
+        "temperature": 0.4
+    }
+)
+
+if response.status_code != 200:
+    print("OpenRouter error:")
+    print(response.text)
+    exit()
+
+result = response.json()
+ai_report = result["choices"][0]["message"]["content"].strip()
+
+with open("daily_report.txt", "w", encoding="utf-8") as file:
+    file.write(ai_report)
+
+print("AI-generated report saved as daily_report.txt")
+
+# =============================
+# Publish to Blogspot via Email
+# =============================
+
+import smtplib
+from email.mime.text import MIMEText
+
+BLOGGER_EMAIL = "s400harshits400.automation101@blogger.com"
+SENDER_EMAIL = "s400harshits400@gmail.com"
+APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
+
+if not APP_PASSWORD:
+    print("Gmail app password not found.")
+    exit()
+
+# Load report
+with open("daily_report.txt", "r", encoding="utf-8") as file:
+    blog_content = file.read()
+
+msg = MIMEText(blog_content, "plain", "utf-8")
+msg["Subject"] = title
+msg["From"] = SENDER_EMAIL
+msg["To"] = BLOGGER_EMAIL
+
+print("Sending post to Blogspot...")
+
+with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+    server.login(SENDER_EMAIL, APP_PASSWORD)
+    server.send_message(msg)
+
+print("Post published to Blogspot.")
+
+
